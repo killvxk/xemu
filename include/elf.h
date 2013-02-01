@@ -23,6 +23,9 @@
 #ifndef _ELF32_H
 #define _ELF32_H
 
+#include <stdint.h>
+
+
 /*******************************
  * Nicht unterstütztes Zeug:   *
  *  - 64 bit                   *
@@ -74,11 +77,11 @@
 #define STT_LOPROC    13    /* Start of processor-specific */
 #define STT_HIPROC    15    /* End of processor-specific */
 
-typedef unsigned long      Elf32_Addr;
-typedef unsigned short     Elf32_Half;
-typedef unsigned long      Elf32_Off;
-typedef   signed long      Elf32_Sword;
-typedef unsigned long      Elf32_Word;
+typedef uint32_t Elf32_Addr;
+typedef uint16_t Elf32_Half;
+typedef uint32_t Elf32_Off;
+typedef  int32_t Elf32_Sword;
+typedef uint32_t Elf32_Word;
 
 //Mit 64 bit muss ich nicht umgehen können...
 
@@ -135,5 +138,8 @@ typedef struct elf32_sym
     unsigned char st_other;
     Elf32_Half    st_shndx;
 } __attribute__((packed)) Elf32_Sym;
+
+
+uintptr_t load_elf(void *elf_base);
 
 #endif

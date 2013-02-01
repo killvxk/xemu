@@ -1,8 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <SDL/SDL.h>
+
+#include "memory.h"
 
 
 Uint32 update_screen(Uint32 intvl, void *param);
@@ -35,15 +36,6 @@ void init_sdl(void)
 
     SDL_Rect rcDest = {0, 0, 720, 400};
     SDL_FillRect(screen, &rcDest, SDL_MapRGB(screen->format, 100, 100, 100));
-
-    logo = SDL_LoadBMP("imgs/logo.bmp");
-    rcDest.x = 210;
-    rcDest.y = 50;
-    SDL_BlitSurface(logo, NULL, screen, &rcDest);
-    SDL_FreeSurface(logo);
-    SDL_UpdateRect(screen, 0, 0, 0, 0);
-
-    SDL_Delay(1000);
 
     rcDest.x = 0;
     rcDest.y = 0;
@@ -82,7 +74,8 @@ Uint32 update_screen(Uint32 intvl, void *param)
     SDL_Rect rcDest = {0, 0, 9, 16};
     SDL_Rect rcSrc = {0, 0, 9, 16};
 
-    uint8_t *buf = (uint8_t *)0xB8000;
+    // TODO: keep physical
+    uint8_t *buf = (uint8_t *)adr_g2h(0xb8000);
 
     for (int y = 0; y < 25; y++)
     {
@@ -100,28 +93,21 @@ Uint32 update_screen(Uint32 intvl, void *param)
             buf += 2;
         }
     }
-    SDL_UpdateRect(screen, 0, 0, 0, 0);
-    return 10;
-}
 
-void deinit_sdl(void)
-{
+    SDL_UpdateRect(screen, 0, 0, 0, 0);
+
+
     SDL_Event event;
 
-    SDL_RemoveTimer(upscreentimer);
-
-    SDL_WM_SetCaption("xemu - Finished", NULL);
-
-    for (;;)
+    while (SDL_PollEvent(&event))
     {
-        while (SDL_PollEvent(&event))
+        switch(event.type)
         {
-            switch(event.type)
-            {
-                case SDL_QUIT:
-                    exit(EXIT_FAILURE);
-            }
+            case SDL_QUIT:
+                exit(EXIT_FAILURE);
         }
-        SDL_Delay(100);
     }
+
+
+    return 10;
 }
