@@ -13,7 +13,7 @@ extern struct Xdtr
 {
     uint16_t limit;
     uint32_t base;
-} gdtr;
+} gdtr, idtr;
 
 
 enum selectors
@@ -28,5 +28,9 @@ extern struct gdt_desc_cache
     int privilege;
     bool present, code, rw, size;
 } gdt_desc_cache[SEL_COUNT];
+
+
+extern volatile bool settle_threads;
+extern int call_int_vector;
 
 #endif
