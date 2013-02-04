@@ -53,14 +53,14 @@ bool execute_interrupt(struct user_regs_struct *regs, int vector, uint32_t errco
     if (!(gate->type & (1 << 7)))
     {
         previous_interrupt = vector;
-        return execute_interrupt(regs, 13, (vector << 2) | 2 | ext, false);
+        return execute_interrupt(regs, 13, (vector << 3) | 2 | ext, false);
     }
 
     if (((gate->type & 0x1f) != GATE_INTR) && ((gate->type & 0x1f) != GATE_TRAP))
     {
         fprintf(stderr, "Unknown IDT descriptor type 0x%02x.\n", gate->type & 0x1f);
         previous_interrupt = vector;
-        return execute_interrupt(regs, 13, (vector << 2) | 2 | ext, false);
+        return execute_interrupt(regs, 13, (vector << 3) | 2 | ext, false);
     }
 
 
@@ -76,14 +76,16 @@ bool execute_interrupt(struct user_regs_struct *regs, int vector, uint32_t errco
 
         unhandled_segfault(vm_pid, &siginfo, regs);
 
+        return false;
+
         /*
-        *(--stack) = regs->ss;
+        *(--stack) = seg_h2g(regs->ss);
         *(--stack) = regs->rsp;
         */
     }
 
     *(--stack) = regs->eflags;
-    *(--stack) = regs->cs;
+    *(--stack) = seg_h2g(regs->cs);
     *(--stack) = regs->rip;
 
 

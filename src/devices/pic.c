@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <strings.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #define DEVICE_NAME "PIC"
 
@@ -13,6 +14,8 @@
 
 
 extern volatile bool settle_threads;
+
+extern volatile bool no_irqs_nao;
 
 volatile int execute_irqs;
 pthread_cond_t irq_update;
@@ -128,8 +131,20 @@ void *irq_thread(void *arg)
 
     while (!settle_threads)
     {
-        while (!execute_irqs)
+        while (!execute_irqs || !int_flag)
             pthread_cond_wait(&irq_update, &cond_mtx);
+
+
+        bool may_interrupt;
+
+        do
+        {
+            int status;
+            waitpid(vm_pid, &status, WNOHANG);
+
+            may_interrupt = !WIFSTOPPED(status);
+        }
+        while (no_irqs_nao || !may_interrupt);
 
 
         int first = ffs(execute_irqs) - 1;
@@ -137,7 +152,7 @@ void *irq_thread(void *arg)
         if (first == 2)
         {
             // dafuq? (IRQ 2 is slave)
-            execute_irqs = 0;
+            execute_irqs &= ~(1 << 2);
             continue;
         }
 
@@ -157,8 +172,10 @@ void *irq_thread(void *arg)
         if (first >= 8)
             in_irq[1] = true;
 
+        execute_irqs &= ~(1 << first);
 
-        call_int_vector = irq_base[first >= 8] + first - 8;
+
+        call_int_vector = irq_base[first >= 8] + (first & 7);
 
         kill(vm_pid, SIGUSR1);
     }
