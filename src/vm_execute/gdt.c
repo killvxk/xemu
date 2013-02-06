@@ -116,7 +116,7 @@ uint16_t seg_h2g(uint16_t sval)
     assert((sval & 7) == 7);
 
 
-    struct gdt_desc *gdt = (struct gdt_desc *)adr_g2h(gdtr.base) + (sval & 0xfff8);
+    struct gdt_desc *gdt = (struct gdt_desc *)adr_g2h(gdtr.base) + (sval >> 3);
 
     return (sval & 0xfff8) | ((gdt->type & 0x60) >> 5);
 }

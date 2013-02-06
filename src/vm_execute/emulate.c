@@ -26,6 +26,7 @@ enum opcode
 {
     mov_sr_r16  = 0x8e,
     retf        = 0xcb,
+    intr        = 0xcd,
     iret        = 0xcf,
     out_ii_al   = 0xe6,
     jmp_far     = 0xea,
@@ -48,7 +49,8 @@ enum operands
     MOD_RM_R,
     FAR_PTR32,
     PIO_DX,
-    PIO_IMM
+    PIO_IMM,
+    BYTE_IMM
 };
 
 
@@ -86,6 +88,10 @@ typedef struct
                 uint32_t *val32;
             };
         };
+
+        uint8_t imm8;
+        uint16_t imm16;
+        uint32_t imm32;
     };
 } instruction_t;
 
@@ -128,6 +134,9 @@ static bool decode_opcode(uint8_t **stream, instruction_t *instr)
             break;
         case out_ii_al:
             instr->operand_type = PIO_IMM;
+            break;
+        case intr:
+            instr->operand_type = BYTE_IMM;
             break;
         default:
             return false;
@@ -262,6 +271,9 @@ static bool decode_operands(uint8_t **stream, instruction_t *instr, struct user_
             instr->port8 = (*stream)++;
             instr->valp  = &regs->rax;
             return true;
+        case BYTE_IMM:
+            instr->imm8 = *(*stream)++;
+            return true;
     }
 
     return false;
@@ -292,7 +304,7 @@ static bool execute(instruction_t *instr, struct user_regs_struct *regs)
             tr = *(uint16_t *)instr->source;
             return true;
         case invlpg:
-            invalidate_page((uintptr_t)instr->source);
+            invalidate_page((uintptr_t)adr_h2g(instr->source));
             return true;
         case jmp_far:
             regs->cs  = load_seg_reg(CS, instr->far_ptr.seg);
@@ -317,7 +329,7 @@ static bool execute(instruction_t *instr, struct user_regs_struct *regs)
             iopl = (regs->eflags >> 12) & 3;
             int_flag = regs->eflags & (1 << 9);
 
-            if (old_priv == gdt_desc_cache[CS].privilege)
+            if (old_priv >= gdt_desc_cache[CS].privilege)
                 regs->rsp = (uintptr_t)adr_h2g(stack);
             else
             {
@@ -353,6 +365,10 @@ static bool execute(instruction_t *instr, struct user_regs_struct *regs)
         case out_ii_al:
             out8(*instr->port8, *instr->val8);
             return true;
+        case intr:
+            // TODO: Privilege check
+            regs->rip += 2;
+            return execute_interrupt(regs, instr->imm8, 0, false);
     }
 
     return false;
@@ -374,7 +390,7 @@ bool emulate(struct user_regs_struct *regs)
         return false;
 
 
-    if ((instr.op != retf) && (instr.op != iret))
+    if ((instr.op != retf) && (instr.op != iret) && (instr.op != intr))
         regs->rip = (uintptr_t)adr_h2g(instr_stream) - gdt_desc_cache[CS].base;
 
 
